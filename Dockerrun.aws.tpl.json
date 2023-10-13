@@ -1,0 +1,19 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "${AWS_REGISTRY_URL}:${BITBUCKET_BUILD_NUMBER}",
+    "Update": "false"
+  },
+  "Ports": [
+    {
+      "ContainerPort": "80"
+    }
+  ],
+  "Volumes": [
+    {
+      "HostDirectory": "/var/log/laravel",
+      "ContainerDirectory": "/var/www/storage/logs"
+    }
+  ],
+  "Logging": "/var/log/apache2"
+}

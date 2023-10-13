@@ -1,0 +1,78 @@
+pipelines:
+  default:
+    - step: &composer
+        name: Download Composer dependencies
+        image: lisotton/focoradical-php:8.1
+        caches:
+          - composer
+        script:
+          - composer install --no-dev --prefer-dist
+        artifacts:
+          - vendor/**
+    - step: &npm
+        name: Build CSS and JS
+        image: node:18-alpine
+        caches:
+          - node
+        script:
+          - npm install --no-progress
+          - npm run build
+        artifacts:
+          - public/build/**
+    - parallel: &build
+      - step:
+          name: Build Docker image
+          services:
+            - docker
+          caches:
+            - docker
+          script:
+            - docker build -t foco-radical-inscricoes-new:${BITBUCKET_BUILD_NUMBER} .
+            - pipe: atlassian/aws-ecr-push-image:2.0.0
+              variables:
+                IMAGE_NAME: foco-radical-inscricoes-new
+                TAGS: ${BITBUCKET_BUILD_NUMBER}
+      - step:
+          name: Prepare artifacts
+          image: alpine:3.14
+          script:
+            - apk add zip gettext curl
+            - envsubst < Dockerrun.aws.tpl.json > Dockerrun.aws.json
+            - zip -0 -r artifact.zip
+              ./.ebextensions
+              ./Dockerrun.aws.json
+              ./.platform
+            - pipe: atlassian/aws-elasticbeanstalk-deploy:1.1.0
+              variables:
+                APPLICATION_NAME: ${APPLICATION_NAME}
+                VERSION_LABEL: ${APPLICATION_NAME}-new-${BITBUCKET_BUILD_NUMBER}-${BITBUCKET_COMMIT:0:8}
+                ZIP_FILE: 'artifact.zip'
+                S3_BUCKET: ${S3_BUCKET}
+                COMMAND: upload-only
+    - step:
+        name: Deploy to Test
+        deployment: test
+        trigger: manual
+        script:
+          - pipe: atlassian/aws-elasticbeanstalk-deploy:1.1.0
+            variables:
+              APPLICATION_NAME: ${APPLICATION_NAME}
+              VERSION_LABEL: ${APPLICATION_NAME}-new-${BITBUCKET_BUILD_NUMBER}-${BITBUCKET_COMMIT:0:8}
+              ENVIRONMENT_NAME: "${APPLICATION_NAME}-test"
+              COMMAND: deploy-only
+  branches:
+    master:
+      - step: *composer
+      - step: *npm
+      - parallel: *build
+      - step:
+          name: Deploy to Prod
+          trigger: manual
+          deployment: production
+          script:
+            - pipe: atlassian/aws-elasticbeanstalk-deploy:1.1.0
+              variables:
+                APPLICATION_NAME: ${APPLICATION_NAME}
+                VERSION_LABEL: ${APPLICATION_NAME}-new-${BITBUCKET_BUILD_NUMBER}-${BITBUCKET_COMMIT:0:8}
+                ENVIRONMENT_NAME: "${APPLICATION_NAME}-prod"
+                COMMAND: deploy-only

@@ -1,0 +1,7 @@
+<template>
+  <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"
+    class="fill-black group-hover:fill-white">
+    <path fill-rule="evenodd" clip-rule="evenodd"
+      d="M11.1111 13.8889H0V0H11.1111V13.8889ZM11.1111 25H0V16.6667H11.1111V25ZM13.8889 25H25V11.1111H13.8889V25ZM13.8889 8.33333V0H25V8.33333H13.8889Z" />
+  </svg>
+</template>
